@@ -6,20 +6,23 @@
         <title>TODO App</title>
 
         <!-- Latest compiled and minified CSS -->
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
 
         <!-- Font Awesome -->
         <link rel="stylesheet"  href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css">
 
         <!-- JQuery -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+		<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
         <!-- Latest compiled and minified JavaScript -->
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
         <!-- Vue.js -->
-        <script src="http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.24/vue.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-resource/0.7.0/vue-resource.min.js"></script>
+		<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/1.0.24/vue.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vue-resource/0.7.0/vue-resource.min.js"></script>-->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.0.3/vue.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vue-resource/1.0.3/vue-resource.min.js"></script>
 
     </head>
     <body>
@@ -28,14 +31,17 @@
                 <div class="col-md-4">
                     <h2>My Tasks</h2>
                     <ul class="list-group">
-                        <li class="list-group-item" v-for="task in tasks">
+						{{ tasks }}
+						<template v-for="(task, index) in tasks">
+                        <li class="list-group-item">
                             {{ task.name }}
                             <span class="pull-right">
-                                <button class="btn btn-xs btn-danger" v-on:click="deleteTask($index)">
+                                <button class="btn btn-xs btn-danger" v-on:click="deleteTask(index)">
                                     <i class="fa fa-trash-o" aria-hidden="true"></i>
                                 </button>
                             </span>
                         </li>
+						</template>
                     </ul>
                     <div class="input-group">
                         <input type="text"
@@ -46,13 +52,13 @@
                         <span class="input-group-btn">
                             <button class="btn btn-primary" type="button" v-on:click="createTask">Create</button>
                         </span>
-                    </div><!-- /input-group -->
+                    </div>
                 </div>
             </div>
         </div>
 
         <script>
-            new Vue({
+            var vm = new Vue({
                 el: 'body',
 
                 data: {
@@ -60,41 +66,54 @@
                     newTask: {}
                 },
 
-          // This is run whenever the page is loaded to make sure we have a current task list
+				// This is run whenever the page is loaded to make sure we have a current task list
                 created: function() {
-        // Use the vue-resource $http client to fetch data from the /tasks route
-                    this.$http.get('/api/v1/tasks').then(function(response) {
-                        this.tasks = response.data.items ? response.data.items : []
-                    })
+					// Use the vue-resource $http client to fetch data from the /tasks route
+                    this.$http.get('/api/v1/tasks').then(
+						function(response) {
+							this.tasks = response.body.items ? response.body.items : []
+						}, function(response) {
+							console.log(response.body)
+						}
+					);
                 },
 
                 methods: {
                     createTask: function() {
+						console.log("createTask" + this.newTask)
                         if (!$.trim(this.newTask.name)) {
                             this.newTask = {}
                             return
                         }
 
-             // Post the new task to the /tasks route using the $http client
-                        this.$http.put('/api/v1/tasks', this.newTask).success(function(response) {
-                            this.newTask.id = response.created
-                            this.tasks.push(this.newTask)
-                            console.log("Task created!")
-                            console.log(this.newTask)
-                            this.newTask = {}
-                        }).error(function(error) {
-                            console.log(error)
-                        });
+						// Post the new task to the /tasks route using the $http client
+                        this.$http.put('/api/v1/tasks', this.newTask).then(
+							(response) => {
+								console.log("put" + response.body)
+								this.newTask.id = response.body.created
+								this.tasks.push(this.newTask)
+								console.log("Task created!")
+								console.log(this.newTask)
+								this.newTask = {}
+							},
+							(response) => {
+								console.alert(response.body)
+							}
+                        );
                     },
 
                     deleteTask: function(index) {
-             // Use the $http client to delete a task by its id
-                        this.$http.delete('/api/v1/tasks/' + this.tasks[index].id).success(function(response) {
-                            this.tasks.splice(index, 1)
-                            console.log("Task deleted!")
-                        }).error(function(error) {
-                            console.log(error)
-                        })
+						// Use the $http client to delete a task by its id
+                        this.$http.delete('/api/v1/tasks/' + this.tasks[index].id).then(
+							(response) => {
+								console.log("delete"+index)
+								this.tasks.splice(index, 1)
+								console.log("Task deleted!")
+							},
+							(response) => {
+								console.alert(response.body)
+							}
+						);
                     }
                 }
             })
