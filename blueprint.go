@@ -2,7 +2,9 @@
 package main
 
 import (
-	"github.com/blue-jay/blueprint/boot"
+	"log"
+
+	"github.com/UNO-SOFT/szamlazo/boot"
 
 	"github.com/blue-jay/core/router"
 	"github.com/blue-jay/core/server"
@@ -14,6 +16,7 @@ func main() {
 	// Load the configuration file
 	info := boot.LoadConfig("env.json")
 
+	log.Printf("%#v", info)
 	// Register the services
 	boot.RegisterServices(info)
 

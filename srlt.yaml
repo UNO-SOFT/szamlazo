@@ -5,8 +5,3 @@ dependencies:
         name: github.com/blue-jay/core
         remote: https://github.com/UNO-SOFT/core.git
         commit: postgres
-    github.com/blue-jay/blueprint:
-        type: git
-        name: github.com/blue-jay/blueprint
-        remote: https://github.com/UNO-SOFT/blueprint.git
-        commit: postgres

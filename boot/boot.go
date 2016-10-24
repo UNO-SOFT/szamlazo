@@ -8,17 +8,17 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/blue-jay/blueprint/controller"
-	"github.com/blue-jay/blueprint/controller/status"
-	"github.com/blue-jay/blueprint/lib/flight"
-	"github.com/blue-jay/blueprint/middleware/logrequest"
-	"github.com/blue-jay/blueprint/middleware/rest"
-	"github.com/blue-jay/blueprint/model"
-	"github.com/blue-jay/blueprint/viewfunc/link"
-	"github.com/blue-jay/blueprint/viewfunc/noescape"
-	"github.com/blue-jay/blueprint/viewfunc/prettytime"
-	"github.com/blue-jay/blueprint/viewmodify/authlevel"
-	"github.com/blue-jay/blueprint/viewmodify/uri"
+	"github.com/UNO-SOFT/szamlazo/controller"
+	"github.com/UNO-SOFT/szamlazo/controller/status"
+	"github.com/UNO-SOFT/szamlazo/lib/flight"
+	"github.com/UNO-SOFT/szamlazo/middleware/logrequest"
+	"github.com/UNO-SOFT/szamlazo/middleware/rest"
+	"github.com/UNO-SOFT/szamlazo/model"
+	"github.com/UNO-SOFT/szamlazo/viewfunc/link"
+	"github.com/UNO-SOFT/szamlazo/viewfunc/noescape"
+	"github.com/UNO-SOFT/szamlazo/viewfunc/prettytime"
+	"github.com/UNO-SOFT/szamlazo/viewmodify/authlevel"
+	"github.com/UNO-SOFT/szamlazo/viewmodify/uri"
 
 	"github.com/blue-jay/core/asset"
 	"github.com/blue-jay/core/email"
@@ -29,7 +29,7 @@ import (
 	"github.com/blue-jay/core/router"
 	"github.com/blue-jay/core/server"
 	"github.com/blue-jay/core/session"
-	"github.com/blue-jay/core/storage/driver/mysql"
+	"github.com/blue-jay/core/storage/driver/postgresql"
 	"github.com/blue-jay/core/view"
 	"github.com/blue-jay/core/xsrf"
 
@@ -47,13 +47,13 @@ type Info struct {
 	Email      email.Info    `json:"Email"`
 	Form       form.Info     `json:"Form"`
 	Generation generate.Info `json:"Generation"`
-	MySQL      mysql.Info    `json:"MySQL"`
-	//PostgreSQL postgresql.Info `json:"PostgreSQL"`
-	Server   server.Info   `json:"Server"`
-	Session  session.Info  `json:"Session"`
-	Template view.Template `json:"Template"`
-	View     view.Info     `json:"View"`
-	Path     string
+	//MySQL      mysql.Info    `json:"MySQL"`
+	PostgreSQL postgresql.Info `json:"PostgreSQL"`
+	Server     server.Info     `json:"Server"`
+	Session    session.Info    `json:"Session"`
+	Template   view.Template   `json:"Template"`
+	View       view.Info       `json:"View"`
+	Path       string
 }
 
 // ParseJSON unmarshals bytes to structs
@@ -101,13 +101,13 @@ func RegisterServices(config *Info) {
 	})
 
 	// Connect to the MySQL database
-	mysqlDB, _ := config.MySQL.Connect(true)
+	//db, _ := config.MySQL.Connect(true)
 
 	// Connect to the PostgreSQL database
-	//postgresqldb, _ := config.PostgreSQL.Connect(true)
+	db, _ := config.PostgreSQL.Connect(true)
 
 	// Load the models
-	model.Load(mysqlDB)
+	model.Load(db)
 
 	// Load the controller routes
 	controller.LoadRoutes()

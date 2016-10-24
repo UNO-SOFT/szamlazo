@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/blue-jay/blueprint/lib/flight"
+	"github.com/UNO-SOFT/szamlazo/lib/flight"
 	"github.com/blue-jay/core/jsonconfig"
 	"github.com/blue-jay/core/session"
 	"github.com/blue-jay/core/view"

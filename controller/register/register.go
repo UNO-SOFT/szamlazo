@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/blue-jay/blueprint/lib/flight"
-	"github.com/blue-jay/blueprint/middleware/acl"
-	"github.com/blue-jay/blueprint/model"
+	"github.com/UNO-SOFT/szamlazo/lib/flight"
+	"github.com/UNO-SOFT/szamlazo/middleware/acl"
+	"github.com/UNO-SOFT/szamlazo/model"
 
 	"github.com/blue-jay/core/form"
 	"github.com/blue-jay/core/passhash"

@@ -4,10 +4,10 @@ package notepad
 import (
 	"net/http"
 
-	"github.com/blue-jay/blueprint/lib/flight"
-	"github.com/blue-jay/blueprint/middleware/acl"
-	"github.com/blue-jay/blueprint/model"
-	"github.com/blue-jay/blueprint/model/note"
+	"github.com/UNO-SOFT/szamlazo/lib/flight"
+	"github.com/UNO-SOFT/szamlazo/middleware/acl"
+	"github.com/UNO-SOFT/szamlazo/model"
+	"github.com/UNO-SOFT/szamlazo/model/note"
 
 	"github.com/blue-jay/core/router"
 )

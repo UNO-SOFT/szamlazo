@@ -1,11 +1,13 @@
-// Package note provides access to the note table in the MySQL database.
+// Package note provides access to the note table in the database.
 package note
 
 import (
 	"database/sql"
 	"fmt"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
+
+	"gopkg.in/guregu/null.v3"
 )
 
 var (
@@ -15,12 +17,12 @@ var (
 
 // Item defines the model.
 type Item struct {
-	ID        uint32         `db:"id"`
-	Name      string         `db:"name"`
-	UserID    uint32         `db:"user_id"`
-	CreatedAt mysql.NullTime `db:"created_at"`
-	UpdatedAt mysql.NullTime `db:"updated_at"`
-	DeletedAt mysql.NullTime `db:"deleted_at"`
+	ID        uint32    `db:"id"`
+	Name      string    `db:"name"`
+	UserID    uint32    `db:"user_id"`
+	CreatedAt null.Time `db:"created_at"`
+	UpdatedAt null.Time `db:"updated_at"`
+	DeletedAt null.Time `db:"deleted_at"`
 }
 
 // Service defines the database connection.
@@ -38,79 +40,79 @@ type Connection interface {
 // ByID gets an item by ID.
 func (s Service) ByID(ID string, userID string) (Item, bool, error) {
 	result := Item{}
-	err := s.DB.Get(&result, fmt.Sprintf(`
+	qry := fmt.Sprintf(`
 		SELECT id, name, user_id, created_at, updated_at, deleted_at
-		FROM %v
-		WHERE id = ?
-			AND user_id = ?
+		FROM %q
+		WHERE id = $1
+			AND user_id = $2
 			AND deleted_at IS NULL
 		LIMIT 1
-		`, table),
-		ID, userID)
-	return result, err == sql.ErrNoRows, err
+		`, table)
+	err := s.DB.Get(&result, qry, ID, userID)
+	return result, err == sql.ErrNoRows, errors.Wrap(err, qry)
 }
 
 // ByUserID gets all entities for a user.
 func (s Service) ByUserID(userID string) ([]Item, bool, error) {
 	var result []Item
-	err := s.DB.Select(&result, fmt.Sprintf(`
+	qry := fmt.Sprintf(`
 		SELECT id, name, user_id, created_at, updated_at, deleted_at
-		FROM %v
-		WHERE user_id = ?
+		FROM %q
+		WHERE user_id = $1
 			AND deleted_at IS NULL
-		`, table),
-		userID)
-	return result, err == sql.ErrNoRows, err
+		`, table)
+	err := s.DB.Select(&result, qry, userID)
+	return result, err == sql.ErrNoRows, errors.Wrap(err, qry)
 }
 
 // Create adds an item.
 func (s Service) Create(name string, userID string) (sql.Result, error) {
-	result, err := s.DB.Exec(fmt.Sprintf(`
-		INSERT INTO %v
+	qry := fmt.Sprintf(`
+		INSERT INTO %q
 		(name, user_id)
 		VALUES
-		(?,?)
-		`, table),
-		name, userID)
-	return result, err
+		($1,$2)
+		`, table)
+	result, err := s.DB.Exec(qry, name, userID)
+	return result, errors.Wrap(err, qry)
 }
 
 // Update makes changes to an existing item.
 func (s Service) Update(name string, ID string, userID string) (sql.Result, error) {
-	result, err := s.DB.Exec(fmt.Sprintf(`
-		UPDATE %v
-		SET name = ?
-		WHERE id = ?
-			AND user_id = ?
+	qry := fmt.Sprintf(`
+		UPDATE %q
+		SET name = $1
+		WHERE id = $2
+			AND user_id = $3
 			AND deleted_at IS NULL
 		LIMIT 1
-		`, table),
-		name, ID, userID)
-	return result, err
+		`, table)
+	result, err := s.DB.Exec(qry, name, ID, userID)
+	return result, errors.Wrap(err, qry)
 }
 
 // DeleteHard removes an item.
 func (s Service) DeleteHard(ID string, userID string) (sql.Result, error) {
-	result, err := s.DB.Exec(fmt.Sprintf(`
-		DELETE FROM %v
-		WHERE id = ?
-			AND user_id = ?
+	qry := fmt.Sprintf(`
+		DELETE FROM %q
+		WHERE id = $1
+			AND user_id = $2
 			AND deleted_at IS NULL
-		`, table),
-		ID, userID)
-	return result, err
+		`, table)
+	result, err := s.DB.Exec(qry, ID, userID)
+	return result, errors.Wrap(err, qry)
 }
 
 // DeleteSoft marks an item as removed.
 func (s Service) DeleteSoft(ID string, userID string) (sql.Result, error) {
-	result, err := s.DB.Exec(fmt.Sprintf(`
-		UPDATE %v
+	qry := fmt.Sprintf(`
+		UPDATE %q
 		SET deleted_at = NOW()
-		WHERE id = ?
-			AND user_id = ?
+		WHERE id = $1
+			AND user_id = $2
 			AND deleted_at IS NULL
 		LIMIT 1
-		`, table),
-		ID, userID)
-	return result, err
+		`, table)
+	result, err := s.DB.Exec(qry, ID, userID)
+	return result, errors.Wrap(err, qry)
 }
