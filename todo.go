@@ -33,10 +33,12 @@ func Main(addr, dbURI string) error {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.Secure())
 
 	e.File("/", "public/index.html")
 	e.File("/index.html", "public/index.html")
 	g := e.Group("/api/v1")
+	//g.Use(middleware.CSRF())
 	g.GET("/tasks", handlers.GetTasks(db))
 	g.PUT("/tasks", handlers.PutTask(db))
 	g.DELETE("/tasks/:id", handlers.DeleteTask(db))
