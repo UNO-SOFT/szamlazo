@@ -1,0 +1,22 @@
+{
+  "name": "szamlazo",
+  "version": "0.0.0",
+  "authors": [
+    "Travis Reeder <treeder@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.7.0",
+    "polymer-starter-kit": "PolymerElements/polymer-starter-kit#^2.0.1",
+    "paper-header-panel": "^1.1.7",
+    "paper-toolbar": "^1.1.7",
+    "paper-tabs": "^1.6.3"
+  }
+}
