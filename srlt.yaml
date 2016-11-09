@@ -1,7 +1,0 @@
-base: ./vendor
-dependencies:
-    github.com/blue-jay/core:
-        type: git
-        name: github.com/blue-jay/core
-        remote: https://github.com/UNO-SOFT/core.git
-        commit: postgres
