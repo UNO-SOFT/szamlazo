@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 
 	oidc "github.com/coreos/go-oidc"
 	"github.com/icza/gowut/gwu"
@@ -65,9 +66,11 @@ func Main(addr, tlsCert, tlsKey string) error {
 	})
 	server.SetLogger(log.New(os.Stderr, "[szamlazo] ", log.LstdFlags))
 
-	server.AddWin(mainWindow())
 	return server.Start("")
 }
+
+var sessionCodeMu sync.Mutex
+var sessionCode = make(map[string]gwu.Session)
 
 func loginWindow(ctx context.Context, ch chan<- oidcToken, destURL, baseURL string) gwu.Window {
 	if clientID == "" || clientSecret == "" {
@@ -81,6 +84,13 @@ func loginWindow(ctx context.Context, ch chan<- oidcToken, destURL, baseURL stri
 	state := base64.URLEncoding.EncodeToString(b[:])
 
 	win := gwu.NewWindow("login", "Bejelentkezés")
+	win.AddEHandlerFunc(func(e gwu.Event) {
+		log.Printf("Win LOAD %s", e.Session().Id())
+		sessionCodeMu.Lock()
+		sessionCode[state] = e.Session()
+		sessionCodeMu.Unlock()
+	},
+		gwu.ETypeWinLoad)
 	p := gwu.NewPanel()
 	win.Add(p)
 
@@ -147,6 +157,18 @@ func authCallback(ctx context.Context, ch chan<- oidcToken, config oauth2.Config
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		sessionCodeMu.Lock()
+		sess, ok := sessionCode[state]
+		if ok {
+			delete(sessionCode, state)
+		}
+		sessionCodeMu.Unlock()
+		if sess == nil {
+			log.Println("No session for %s", state)
+		} else {
+			log.Printf("set %s.oidc_token = %#v", sess.Id(), resp)
+			sess.SetAttr("oidc_token", resp)
+		}
 		ch <- resp
 
 		data, _ := json.Marshal(resp)
@@ -183,8 +205,10 @@ func mainWindow() gwu.Window {
 	l := gwu.NewLabel("token")
 	p.Add(l)
 	l.AddEHandlerFunc(func(e gwu.Event) {
-		log.Printf("session: %v (%t)", e.Session().Id(), e.Session().Private())
-		l.SetToolTip(fmt.Sprintf("%v", e.Session().Attr("oidc_token")))
+		sess := e.Session()
+		tok := sess.Attr("oidc_token")
+		log.Printf("session: %v (%t) token=%#v", sess.Id(), sess.Private(), tok)
+		l.SetToolTip(fmt.Sprintf("%v", sess.Attr("oidc_token")))
 	},
 		gwu.ETypeMouseOver)
 	return win
@@ -198,11 +222,14 @@ type sessHandler struct {
 
 func (h sessHandler) Created(s gwu.Session) {
 	log.Printf("Session %q created.", s.Id())
-	s.AddWin(loginWindow(oauth2.NoContext, h.ch, h.destURL, h.baseURL))
+	w := loginWindow(oauth2.NoContext, h.ch, h.destURL, h.baseURL)
+	s.AddWin(w)
+	s.AddWin(mainWindow())
 	go func() {
 		tok := <-h.ch
 		log.Printf("Set oidc_token on %v: %#v", s.Id(), tok)
 		s.SetAttr("oidc_token", tok)
+		s.RemoveWin(w)
 	}()
 }
 
