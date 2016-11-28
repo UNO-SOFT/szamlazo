@@ -19,7 +19,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var clientID, clientSecret string
+var clientID, clientSecret, msTenantID string
 
 func main() {
 	flagTLSCert := flag.String("tls-cert", "", "TLS certificate file")
@@ -41,10 +41,21 @@ var providers = make(map[string]*oidc.Provider)
 
 func init() {
 	var err error
-	providers["google"], err = oidc.NewProvider(context.Background(),
-		"https://accounts.google.com")
-	if err != nil {
-		panic(errors.Wrap(err, "google"))
+	for name, issuer := range map[string]string{
+		"Google":     "https://accounts.google.com",
+		"eBay":       "https://openidconnect.ebay.com",
+		"SalesForce": "https://login.salesforce.com",
+		"Microsoft":  "https://sts.windows.net/" + msTenantID,
+	} {
+		providers[name], err = oidc.NewProvider(context.Background(), issuer)
+		if err != nil {
+			log.Printf("%s: %v", errors.Wrap(err, issuer))
+			continue
+		}
+		if providers[name] == nil {
+			delete(providers, name)
+			continue
+		}
 	}
 }
 
@@ -59,20 +70,52 @@ func Main(addr, tlsCert, tlsKey string) error {
 
 	baseURL := server.AppUrl()
 	baseURL = baseURL[:len(baseURL)-len(server.AppPath())]
-	ch := make(chan oidcToken, 1)
 	server.AddSessCreatorName("login", "Login Window")
 	server.AddSHandler(sessHandler{
-		baseURL: baseURL, destURL: server.AppUrl(), ch: ch,
+		baseURL: baseURL, destURL: server.AppUrl(),
 	})
 	server.SetLogger(log.New(os.Stderr, "[szamlazo] ", log.LstdFlags))
+	registerAuthCbHandlers(context.Background(), http.DefaultServeMux, server.AppUrl(), baseURL)
 
 	return server.Start("")
+}
+
+func registerAuthCbHandlers(ctx context.Context, mux *http.ServeMux, destURL, baseURL string) {
+	URL, err := url.Parse(baseURL)
+	if err != nil {
+		panic(fmt.Sprintf("parse %q: %v", baseURL, err))
+	}
+	for name, provider := range providers {
+		redirectURL := baseURL + "/_auth/" + name + "/callback"
+		conf := oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			Endpoint:     provider.Endpoint(),
+			RedirectURL:  redirectURL,
+			Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+		}
+		cbURL := URL.Path + "/_auth/" + name + "/callback"
+		log.Printf("adding %q provider as %q", name, cbURL)
+		provider := provider
+		http.Handle(cbURL,
+			authCallback(ctx, conf, destURL,
+				provider.Verifier(
+					oidc.VerifyExpiry(),
+					oidc.VerifySigningAlg(
+						oidc.RS256, oidc.RS384, oidc.RS512,
+						oidc.ES256, oidc.ES384, oidc.ES512,
+						oidc.PS256, oidc.PS384, oidc.PS512,
+					),
+				),
+			),
+		)
+	}
 }
 
 var sessionCodeMu sync.Mutex
 var sessionCode = make(map[string]gwu.Session)
 
-func loginWindow(ctx context.Context, ch chan<- oidcToken, destURL, baseURL string) gwu.Window {
+func loginWindow(ctx context.Context, destURL string) gwu.Window {
 	if clientID == "" || clientSecret == "" {
 		log.Println("Empty Client ID/Secret means no auth will work!")
 	}
@@ -94,42 +137,14 @@ func loginWindow(ctx context.Context, ch chan<- oidcToken, destURL, baseURL stri
 	p := gwu.NewPanel()
 	win.Add(p)
 
-	URL, err := url.Parse(baseURL)
-	if err != nil {
-		panic(fmt.Sprintf("parse %q: %v", baseURL, err))
-	}
 	for name, provider := range providers {
-		redirectURL := baseURL + "/_auth/" + name + "/callback"
-		conf := oauth2.Config{
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			Endpoint:     provider.Endpoint(),
-			RedirectURL:  redirectURL,
-			Scopes:       []string{oidc.ScopeOpenID, "email"},
-		}
-		authCodeURL := conf.AuthCodeURL(state)
-		cbURL := URL.Path + "/_auth/" + name + "/callback"
-		log.Println(cbURL)
-		http.Handle(cbURL,
-			authCallback(ctx, ch, conf, destURL, state,
-				provider.Verifier(
-					oidc.VerifyExpiry(),
-					oidc.VerifySigningAlg(
-						oidc.RS256, oidc.RS384, oidc.RS512,
-						oidc.ES256, oidc.ES384, oidc.ES512,
-						oidc.PS256, oidc.PS384, oidc.PS512,
-					),
-				),
-			),
-		)
-
-		log.Printf("adding %q provider", name)
+		authCodeURL := conf.AuthCodeURL("state")
 		p.Add(gwu.NewLink(name, authCodeURL))
 	}
 	return win
 }
 
-func authCallback(ctx context.Context, ch chan<- oidcToken, config oauth2.Config, destURL, state string, verifier *oidc.IDTokenVerifier) http.Handler {
+func authCallback(ctx context.Context, config oauth2.Config, destURL string, verifier *oidc.IDTokenVerifier) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("state") != state {
 			http.Error(w, "state did not match", http.StatusBadRequest)
@@ -152,8 +167,8 @@ func authCallback(ctx context.Context, ch chan<- oidcToken, config oauth2.Config
 			return
 		}
 
-		resp := oidcToken{Token: oauth2Token, IDTokenClaims: new(json.RawMessage)}
-		if err := idToken.Claims(&resp.IDTokenClaims); err != nil {
+		resp := oidcToken{Token: oauth2Token}
+		if err := idToken.Claims(&resp.UserInfo); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -167,9 +182,8 @@ func authCallback(ctx context.Context, ch chan<- oidcToken, config oauth2.Config
 			log.Println("No session for %s", state)
 		} else {
 			log.Printf("set %s.oidc_token = %#v", sess.Id(), resp)
-			sess.SetAttr("oidc_token", resp)
+			sess.SetAttr("user", resp.UserInfo)
 		}
-		ch <- resp
 
 		data, _ := json.Marshal(resp)
 		log.Println(string(data))
@@ -191,7 +205,28 @@ func authCallback(ctx context.Context, ch chan<- oidcToken, config oauth2.Config
 
 type oidcToken struct {
 	*oauth2.Token
-	IDTokenClaims *json.RawMessage // ID Token payload is just JSON.
+	UserInfo
+}
+
+type UserInfo struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	ID            string `json:"sub"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Locale        string `json:"locale"`
+}
+
+func (u UserInfo) DisplayName() string {
+	if u.Locale == "hu" && u.GivenName != "" && u.FamilyName != "" {
+		return u.GivenName + " " + u.FamilyName
+	}
+	if u.Name == "" {
+		return u.Email
+	}
+	return u.Name
 }
 
 func mainWindow() gwu.Window {
@@ -202,35 +237,29 @@ func mainWindow() gwu.Window {
 	win.SetCellPadding(2)
 	p := gwu.NewPanel()
 	win.Add(p)
-	l := gwu.NewLabel("token")
+	l := gwu.NewLabel("Helló!")
 	p.Add(l)
-	l.AddEHandlerFunc(func(e gwu.Event) {
+	win.AddEHandlerFunc(func(e gwu.Event) {
 		sess := e.Session()
-		tok := sess.Attr("oidc_token")
-		log.Printf("session: %v (%t) token=%#v", sess.Id(), sess.Private(), tok)
-		l.SetToolTip(fmt.Sprintf("%v", sess.Attr("oidc_token")))
+		user := sess.Attr("user").(UserInfo)
+		log.Printf("session: %v (%t) token=%#v", sess.Id(), sess.Private(), user)
+		l.SetText(fmt.Sprintf("Helló, %s", user.DisplayName()))
+		e.MarkDirty(l)
 	},
-		gwu.ETypeMouseOver)
+		gwu.ETypeWinLoad)
 	return win
 }
 
 // A SessionHandler implementation:
 type sessHandler struct {
 	baseURL, destURL string
-	ch               chan oidcToken
 }
 
 func (h sessHandler) Created(s gwu.Session) {
 	log.Printf("Session %q created.", s.Id())
-	w := loginWindow(oauth2.NoContext, h.ch, h.destURL, h.baseURL)
+	w := loginWindow(oauth2.NoContext, h.destURL, h.baseURL)
 	s.AddWin(w)
 	s.AddWin(mainWindow())
-	go func() {
-		tok := <-h.ch
-		log.Printf("Set oidc_token on %v: %#v", s.Id(), tok)
-		s.SetAttr("oidc_token", tok)
-		s.RemoveWin(w)
-	}()
 }
 
 func (h sessHandler) Removed(s gwu.Session) {}
