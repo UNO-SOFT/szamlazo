@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -38,9 +37,10 @@ func main() {
 	}
 }
 
-var providers = make(map[string]Provider)
+var providers = make([]Provider, 0, 8)
 
 type Provider struct {
+	Name string
 	*oidc.Provider
 	*oauth2.Config
 }
@@ -50,21 +50,21 @@ func (p Provider) Endpoint() oauth2.Endpoint {
 }
 
 func init() {
-	for name, issuer := range map[string]string{
-		"Google":     "https://accounts.google.com",
-		"eBay":       "https://openidconnect.ebay.com",
-		"SalesForce": "https://login.salesforce.com",
-		"Microsoft":  "https://sts.windows.net/" + msTenantID,
+	for _, issuer := range [][2]string{
+		{"Google", "https://accounts.google.com"},
+		{"eBay", "https://openidconnect.ebay.com"},
+		{"SalesForce", "https://login.salesforce.com"},
+		{"Microsoft", "https://sts.windows.net/" + msTenantID},
 	} {
-		prov, err := oidc.NewProvider(context.Background(), issuer)
+		prov, err := oidc.NewProvider(context.Background(), issuer[1])
 		if err != nil {
-			log.Printf("%s: %v", errors.Wrap(err, issuer))
+			log.Printf("%s: %v", errors.Wrap(err, issuer[1]))
 			continue
 		}
 		if prov == nil {
 			continue
 		}
-		providers[name] = Provider{Provider: prov}
+		providers = append(providers, Provider{Name: issuer[0], Provider: prov})
 	}
 }
 
@@ -93,8 +93,9 @@ func registerAuthCbHandlers(ctx context.Context, mux *http.ServeMux, destURL, ba
 	if err != nil {
 		panic(fmt.Sprintf("parse %q: %v", baseURL, err))
 	}
-	for name, provider := range providers {
-		redirectURL := baseURL + "/_auth/" + strings.ToLower(name) + "/callback"
+	for i, provider := range providers {
+		cbPath := "/_auth/" + strings.ToLower(provider.Name) + "/callback"
+		redirectURL := baseURL + cbPath
 		conf := provider.Config
 		if conf == nil {
 			conf = &oauth2.Config{
@@ -105,10 +106,10 @@ func registerAuthCbHandlers(ctx context.Context, mux *http.ServeMux, destURL, ba
 				Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
 			}
 			provider.Config = conf
-			providers[name] = provider
+			providers[i] = provider
 		}
-		cbURL := URL.Path + "/_auth/" + name + "/callback"
-		log.Printf("adding %q provider as %q", name, cbURL)
+		cbURL := URL.Path + cbPath
+		log.Printf("adding %q provider as %q", provider.Name, cbURL)
 		provider := provider
 		http.Handle(cbURL,
 			authCallback(ctx, *conf, destURL,
@@ -137,28 +138,28 @@ func loginWindow(ctx context.Context, destURL string) gwu.Window {
 		panic(err)
 	}
 
-	state := base64.URLEncoding.EncodeToString(b[:])
-
 	win := gwu.NewWindow("login", "Bejelentkezés")
 	p := gwu.NewPanel()
 	win.Add(p)
 	const placeholder = "sessionid-to-be-changed"
-	linkIds := make([]gwu.ID, 0, len(providers))
-	for name, provider := range providers {
+	linkIds := make([]gwu.ID, len(providers))
+	for i, provider := range providers {
 		authCodeURL := provider.Config.AuthCodeURL(placeholder)
-		l := gwu.NewLink(name, authCodeURL)
+		l := gwu.NewLink(provider.Name, authCodeURL)
 		p.Add(l)
-		linkIds = append(linkIds, l.Id())
+		linkIds[i] = l.Id()
 	}
 	win.AddEHandlerFunc(func(e gwu.Event) {
-		log.Printf("Win LOAD %s", e.Session().Id())
+		sess := e.Session()
+		sessID := sess.Id()
+		log.Printf("Win LOAD %s", sessID)
 		sessionCodeMu.Lock()
-		sessionCode[state] = e.Session()
+		sessionCode[sessID] = sess
 		sessionCodeMu.Unlock()
 
 		for _, lID := range linkIds {
 			l := p.ById(lID).(gwu.Link)
-			u := strings.Replace(l.Url(), placeholder, url.QueryEscape(e.Session().Id()), 1)
+			u := strings.Replace(l.Url(), placeholder, url.QueryEscape(sessID), 1)
 			l.SetUrl(u)
 			e.MarkDirty(l)
 		}
@@ -179,6 +180,7 @@ func authCallback(ctx context.Context, config oauth2.Config, destURL string, ver
 		}
 		sessionCodeMu.Unlock()
 		if !ok {
+			log.Printf("got state=%q, has %q", sessionid, sessionCode)
 			http.Error(w, "state did not match", http.StatusBadRequest)
 			return
 		}
