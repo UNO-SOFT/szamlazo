@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	oidc "github.com/coreos/go-oidc"
@@ -37,25 +38,33 @@ func main() {
 	}
 }
 
-var providers = make(map[string]*oidc.Provider)
+var providers = make(map[string]Provider)
+
+type Provider struct {
+	*oidc.Provider
+	*oauth2.Config
+}
+
+func (p Provider) Endpoint() oauth2.Endpoint {
+	return p.Provider.Endpoint()
+}
 
 func init() {
-	var err error
 	for name, issuer := range map[string]string{
 		"Google":     "https://accounts.google.com",
 		"eBay":       "https://openidconnect.ebay.com",
 		"SalesForce": "https://login.salesforce.com",
 		"Microsoft":  "https://sts.windows.net/" + msTenantID,
 	} {
-		providers[name], err = oidc.NewProvider(context.Background(), issuer)
+		prov, err := oidc.NewProvider(context.Background(), issuer)
 		if err != nil {
 			log.Printf("%s: %v", errors.Wrap(err, issuer))
 			continue
 		}
-		if providers[name] == nil {
-			delete(providers, name)
+		if prov == nil {
 			continue
 		}
+		providers[name] = Provider{Provider: prov}
 	}
 }
 
@@ -71,11 +80,10 @@ func Main(addr, tlsCert, tlsKey string) error {
 	baseURL := server.AppUrl()
 	baseURL = baseURL[:len(baseURL)-len(server.AppPath())]
 	server.AddSessCreatorName("login", "Login Window")
-	server.AddSHandler(sessHandler{
-		baseURL: baseURL, destURL: server.AppUrl(),
-	})
+	sH := sessHandler{destURL: server.AppUrl() + "main"}
+	server.AddSHandler(sH)
 	server.SetLogger(log.New(os.Stderr, "[szamlazo] ", log.LstdFlags))
-	registerAuthCbHandlers(context.Background(), http.DefaultServeMux, server.AppUrl(), baseURL)
+	registerAuthCbHandlers(context.Background(), http.DefaultServeMux, sH.destURL, baseURL)
 
 	return server.Start("")
 }
@@ -86,19 +94,24 @@ func registerAuthCbHandlers(ctx context.Context, mux *http.ServeMux, destURL, ba
 		panic(fmt.Sprintf("parse %q: %v", baseURL, err))
 	}
 	for name, provider := range providers {
-		redirectURL := baseURL + "/_auth/" + name + "/callback"
-		conf := oauth2.Config{
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			Endpoint:     provider.Endpoint(),
-			RedirectURL:  redirectURL,
-			Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+		redirectURL := baseURL + "/_auth/" + strings.ToLower(name) + "/callback"
+		conf := provider.Config
+		if conf == nil {
+			conf = &oauth2.Config{
+				ClientID:     clientID,
+				ClientSecret: clientSecret,
+				Endpoint:     provider.Endpoint(),
+				RedirectURL:  redirectURL,
+				Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+			}
+			provider.Config = conf
+			providers[name] = provider
 		}
 		cbURL := URL.Path + "/_auth/" + name + "/callback"
 		log.Printf("adding %q provider as %q", name, cbURL)
 		provider := provider
 		http.Handle(cbURL,
-			authCallback(ctx, conf, destURL,
+			authCallback(ctx, *conf, destURL,
 				provider.Verifier(
 					oidc.VerifyExpiry(),
 					oidc.VerifySigningAlg(
@@ -127,26 +140,45 @@ func loginWindow(ctx context.Context, destURL string) gwu.Window {
 	state := base64.URLEncoding.EncodeToString(b[:])
 
 	win := gwu.NewWindow("login", "Bejelentkezés")
+	p := gwu.NewPanel()
+	win.Add(p)
+	const placeholder = "sessionid-to-be-changed"
+	linkIds := make([]gwu.ID, 0, len(providers))
+	for name, provider := range providers {
+		authCodeURL := provider.Config.AuthCodeURL(placeholder)
+		l := gwu.NewLink(name, authCodeURL)
+		p.Add(l)
+		linkIds = append(linkIds, l.Id())
+	}
 	win.AddEHandlerFunc(func(e gwu.Event) {
 		log.Printf("Win LOAD %s", e.Session().Id())
 		sessionCodeMu.Lock()
 		sessionCode[state] = e.Session()
 		sessionCodeMu.Unlock()
+
+		for _, lID := range linkIds {
+			l := p.ById(lID).(gwu.Link)
+			u := strings.Replace(l.Url(), placeholder, url.QueryEscape(e.Session().Id()), 1)
+			l.SetUrl(u)
+			e.MarkDirty(l)
+		}
 	},
 		gwu.ETypeWinLoad)
-	p := gwu.NewPanel()
-	win.Add(p)
 
-	for name, provider := range providers {
-		authCodeURL := conf.AuthCodeURL("state")
-		p.Add(gwu.NewLink(name, authCodeURL))
-	}
 	return win
 }
 
 func authCallback(ctx context.Context, config oauth2.Config, destURL string, verifier *oidc.IDTokenVerifier) http.Handler {
+	log.Printf("authCallback destURL=%q", destURL)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("state") != state {
+		sessionid := r.URL.Query().Get("state")
+		sessionCodeMu.Lock()
+		sess, ok := sessionCode[sessionid]
+		if ok {
+			delete(sessionCode, sessionid)
+		}
+		sessionCodeMu.Unlock()
+		if !ok {
 			http.Error(w, "state did not match", http.StatusBadRequest)
 			return
 		}
@@ -172,23 +204,15 @@ func authCallback(ctx context.Context, config oauth2.Config, destURL string, ver
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sessionCodeMu.Lock()
-		sess, ok := sessionCode[state]
-		if ok {
-			delete(sessionCode, state)
-		}
-		sessionCodeMu.Unlock()
-		if sess == nil {
-			log.Println("No session for %s", state)
-		} else {
-			log.Printf("set %s.oidc_token = %#v", sess.Id(), resp)
-			sess.SetAttr("user", resp.UserInfo)
-		}
+		log.Printf("set %s.oidc_token = %#v", sess.Id(), resp)
+		sess.SetAttr("user", resp.UserInfo)
+		sess.RemoveWin(sess.WinByName("login"))
 
 		data, _ := json.Marshal(resp)
 		log.Println(string(data))
 
 		if destURL != "" {
+			log.Printf("Redirecting to %q", destURL)
 			http.Redirect(w, r, destURL, http.StatusFound)
 			return
 		}
@@ -241,7 +265,7 @@ func mainWindow() gwu.Window {
 	p.Add(l)
 	win.AddEHandlerFunc(func(e gwu.Event) {
 		sess := e.Session()
-		user := sess.Attr("user").(UserInfo)
+		user, _ := sess.Attr("user").(UserInfo)
 		log.Printf("session: %v (%t) token=%#v", sess.Id(), sess.Private(), user)
 		l.SetText(fmt.Sprintf("Helló, %s", user.DisplayName()))
 		e.MarkDirty(l)
@@ -252,12 +276,11 @@ func mainWindow() gwu.Window {
 
 // A SessionHandler implementation:
 type sessHandler struct {
-	baseURL, destURL string
+	destURL string
 }
 
 func (h sessHandler) Created(s gwu.Session) {
-	log.Printf("Session %q created.", s.Id())
-	w := loginWindow(oauth2.NoContext, h.destURL, h.baseURL)
+	w := loginWindow(oauth2.NoContext, h.destURL)
 	s.AddWin(w)
 	s.AddWin(mainWindow())
 }
