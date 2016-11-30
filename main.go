@@ -12,6 +12,7 @@ import (
 
 	"github.com/UNO-SOFT/szamlazo/oidcauth"
 	"github.com/icza/gowut/gwu"
+	"github.com/lucas-clemente/quic-go/h2quic"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -60,7 +61,11 @@ func Main(addr, tlsCert, tlsKey string) error {
 		func(sess gwu.Session) { sess.RemoveWin(sess.WinByName("login")) },
 	)
 
-	return server.Start("")
+	if tlsCert == "" || tlsKey == "" {
+		return server.Start("")
+	}
+	go server.Start("")
+	return h2quic.ListenAndServeQUIC(addr, tlsCert, tlsKey, nil)
 }
 
 func loginWindow(ctx context.Context, destURL string) gwu.Window {
