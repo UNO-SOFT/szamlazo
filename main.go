@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,9 @@ import (
 	"github.com/UNO-SOFT/szamlazo/oidcauth"
 	"github.com/icza/gowut/gwu"
 	"github.com/lucas-clemente/quic-go/h2quic"
+	"github.com/lucas-clemente/quic-go/protocol"
+	"github.com/pkg/errors"
+
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -64,6 +68,14 @@ func Main(addr, tlsCert, tlsKey string) error {
 	if tlsCert == "" || tlsKey == "" {
 		return server.Start("")
 	}
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return errors.Wrap(err, addr)
+	}
+	server.SetHeaders(map[string][]string{
+		"Alternate-Protocol": {fmt.Sprintf("%s:quic", port)},
+		"Alt-Svc":            {fmt.Sprintf(`quic=":%s"; ma=2592000; v="%s"`, port, protocol.SupportedVersionsAsString)},
+	})
 	go server.Start("")
 	return h2quic.ListenAndServeQUIC(addr, tlsCert, tlsKey, nil)
 }
