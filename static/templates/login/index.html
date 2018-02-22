@@ -1,0 +1,32 @@
+{{define "content"}}
+<header class="row">
+    <div class="col-sm-12">
+
+        <form id="authForm">
+          <div class="form-group">
+            <label for="emailInput">login</label>
+            <input type="email" class="form-control" id="emailInput" aria-describedby="emailHelp" placeholder="enter your email" name="email">
+            <small id="emailHelp" class="form-text text-muted">we'll never share your email with anyone else</small>
+          </div>
+          <div class="form-group">
+            <label for="passwordInput">password</label>
+            <input type="password" class="form-control" id="passwordInput" placeholder="enter your password" name="password">
+          </div>
+          <button type="button" class="btn btn-primary" onclick="getToken();">submit</button>
+        </form>
+
+        <hr/>
+
+        sample logins:
+        <ul class="list-group">
+          <li class="list-group-item">john.doe@foo.com/johndoe has full rights on entity 1</li>
+          <li class="list-group-item">mickey.mouse@foo.com/mickeymouse  has rw rights on entity 2</li>
+          <li class="list-group-item">obione.kenobi@foo.com/obionekenobi is super admin</li>
+          <li class="list-group-item">dark.vader@foo.com/darkvader has r right on all entities</li>
+        </ul>
+
+    </div>
+</header>
+{{end}}
+{{define "contentjs"}}
+{{end}}

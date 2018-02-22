@@ -1,0 +1,198 @@
+{{define "content"}}
+<header class="row">
+    <div class="col-sm-12">
+        <table id="table"
+               data-toggle="table" 
+               data-striped="true" 
+               data-search="true" 
+               data-side-pagination="server"
+               data-pagination="true"
+               data-ajax="getData">
+            <thead>
+                <tr>
+                    <th data-field="id">ID</th>
+                    <th data-field="name">Name</th>
+                    <th data-field="description">Description</th>
+                    <th data-field="email">Manager</th>
+                    <th data-field="operate" data-formatter="operateFormatter" data-events="operateEvents">Actions</th>
+                </tr>
+            </thead>
+        </table>    
+    </div>
+</header>
+
+<!-- Modal for view action -->
+<div id="viewModal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Entity card</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+
+         <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="sname">name</span>
+          </div>
+          <input disabled="disabled" type="text" id="name" class="form-control" placeholder="entity name" aria-label="entity name" aria-describedby="sname">
+        </div>
+         <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="sdescription">description</span>
+          </div>
+          <input disabled="disabled" type="text" id="description" class="form-control" placeholder="entity description" aria-label="entity description" aria-describedby="sdescription">
+        </div>
+         <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="semail">manager</span>
+          </div>
+          <input disabled="disabled" type="text" id="email" class="form-control" placeholder="entity manager" aria-label="entity manager" aria-describedby="semail">
+        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for edit action -->
+
+<div id="editModal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Update entity</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+
+        <input type="hidden" name="id" id="id" value="">
+         <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="sname">name</span>
+          </div>
+          <input type="text" id="name" class="form-control" placeholder="entity name" aria-label="entity name" aria-describedby="sname">
+        </div>
+         <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text" id="sdescription">description</span>
+          </div>
+          <input type="text" id="description" class="form-control" placeholder="entity description" aria-label="entity description" aria-describedby="sdescription">
+        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="saveEntity()">Save changes</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "contentjs"}}
+<script>
+    function saveEntity() {
+        var id = $("#editModal input#id").val(),
+            name = $("#editModal input#name").val(),
+            description = $("#editModal input#description").val();
+            $.ajax({
+                url: "/entity/" + id,
+                method: "PUT",
+                dataType: 'json',
+                data: {
+                    id: id,
+                    name: name,
+                    description: description 
+                },
+            }).done(function(data, textStatus, jqXHR) {
+                $('#editModal').modal('hide');
+                var $table = $('#table');
+                $table.bootstrapTable('updateRow', {
+                    index: id - 1,
+                    row: {
+                        name: name,
+                        description: description
+                    }
+                });
+                displayMessage("entity " + name + " updated", "success");
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                handleHTTPError(jqXHR.statusText, jqXHR.status)
+            });  
+    }
+
+    function getData(params) {
+             $.ajax({
+                url: "/entities",
+                method: "GET",
+                dataType: "JSON",
+            }).done(function(data, textStatus, jqXHR) {
+                params.success({
+                    rows: data,
+                    total: data.length
+                });
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                params.error(jqXHR.statusText);                
+                handleHTTPError(jqXHR.statusText, jqXHR.status)
+            });           
+    }
+
+    function operateFormatter(value, row, index) {
+        return [
+            '<button class="view btn btn-secondary" title="View" type="button">',
+                '<i class="fas fa-eye"></i>',
+            '</button>',
+            '<button class="edit btn btn-secondary" title="Edit" type="button">',
+                '<i class="fas fa-edit"></i>',
+            '</button>',
+            '<button class="delete btn btn-secondary" title="Delete" type="button">',
+                '<i class="fas fa-trash-alt"></i>',
+            '</button>',
+        ].join('&nbsp;');
+    }
+
+    window.operateEvents = {
+        'click .view': function (e, value, row, index) {
+            $.ajax({
+                url: "/entity/" + row['id'],
+                method: "GET",
+            }).done(function(data, textStatus, jqXHR) {
+                $("#viewModal").autofill( data, {"findbyname": false } );
+                $('#viewModal').modal('show');
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                handleHTTPError(jqXHR.statusText, jqXHR.status)
+            });
+        },
+        'click .edit': function (e, value, row, index) {
+            $.ajax({
+                url: "/entity/" + row['id'],
+                method: "GET",
+            }).done(function(data, textStatus, jqXHR) {
+                $("#editModal").autofill( data, {"findbyname": false } );
+                $('#editModal').modal('show');
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                handleHTTPError(jqXHR.statusText, jqXHR.status)
+            });
+        },
+        'click .delete': function (e, value, row, index) {
+            $.ajax({
+                url: "/entity/" + row['id'],
+                method: "DELETE",
+            }).done(function(data, textStatus, jqXHR) {
+                var $table = $('#table');
+                $table.bootstrapTable('refresh');
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                handleHTTPError(jqXHR.statusText, jqXHR.status)
+            });
+
+        }
+    };
+</script>
+{{end}}

@@ -1,0 +1,61 @@
+{{define "content"}}
+<form id="myform">
+    <div class="form-group row">
+      <label for="name" class="col-2 col-form-label">name</label>
+      <div class="col-10">
+        <input class="form-control" type="text" value="" name="name" id="name">
+      </div>
+    </div>
+
+    <div class="form-group row">
+      <label for="name" class="col-2 col-form-label">description</label>
+      <div class="col-10">
+        <input class="form-control" type="text" value="" name="description" id="description">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" type="submit">ok</button>
+
+    <div class="alert alert-info" role="alert">
+        - example of server side validation for the field "name"
+        - the entity manager is hardcoded for the demo
+    </div>
+</form>
+{{end}}
+
+{{define "contentjs"}}
+<script>
+$( "#myform" ).validate({
+  errorClass: "alert alert-danger",
+  rules: {
+    name: {
+      required: true,
+      remote: "/validate/login/name",
+    },
+  },
+  submitHandler: function(form) {
+    doSubmit();
+  },
+});
+
+function doSubmit() {
+    var name = $("input#name").val(),
+        description = $("input#description").val();
+
+    $.ajax({
+        url: "/entity",
+        method: "POST",
+        dataType: 'json',
+        data: {
+            name: name,
+            description: description 
+        },
+    }).done(function(data, textStatus, jqXHR) {
+        displayMessage("entity " + name + " created", "success");
+        setTimeout(function(){ window.location = "/v/entities"; }, 1000);
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        handleHTTPError(jqXHR.statusText, jqXHR.status)
+    }); 
+}
+</script>
+{{end}}
