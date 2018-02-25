@@ -2,8 +2,8 @@
 # https://docs.docker.com/engine/userguide/eng-image/multistage-build/
 FROM gobuffalo/buffalo:v0.10.3 as builder
 
-RUN mkdir -p $GOPATH/src/github.com/UNO-SOFT/szamlazo
-WORKDIR $GOPATH/src/github.com/UNO-SOFT/szamlazo
+RUN mkdir -p $GOPATH/src/github.com/tgulacsi/szamlazo
+WORKDIR $GOPATH/src/github.com/tgulacsi/szamlazo
 
 # this will cache the npm install step, unless package.json changes
 ADD package.json .

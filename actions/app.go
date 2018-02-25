@@ -7,10 +7,10 @@ import (
 	"github.com/gobuffalo/envy"
 	"github.com/unrolled/secure"
 
-	"github.com/UNO-SOFT/szamlazo/models"
 	"github.com/gobuffalo/buffalo/middleware/csrf"
 	"github.com/gobuffalo/buffalo/middleware/i18n"
 	"github.com/gobuffalo/packr"
+	"github.com/UNO-SOFT/szamlazo/models"
 )
 
 // ENV is used to help switch settings based on where the

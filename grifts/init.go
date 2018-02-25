@@ -1,8 +1,8 @@
 package grifts
 
 import (
-	"github.com/UNO-SOFT/szamlazo/actions"
 	"github.com/gobuffalo/buffalo"
+	"github.com/UNO-SOFT/szamlazo/actions"
 )
 
 func init() {
