@@ -1,0 +1,42 @@
+{{ define "Starter" }}
+<div class="w-full h-screen flex items-start">
+    <!-- Navigation -->
+    <div class="w-full md:w-1/2 p-4 md:p-32">
+        <!-- Title -->
+        <div class="text-center text-4xl font-black">Your project setup is ready!</div>
+        <!-- Things installed -->
+        <div class="mt-12">
+            <div class="text-lg font-semibold">This bundle includes:</div>
+            <div class="mt-4 flex flex-col gap-4">
+                {{ range .Installed }}
+                    <a href="{{ .Href }}" target="_blank" class="p-4 flex items-center gap-4 bg-gray-100 hover:bg-gray-200">
+                        <!-- Icon -->
+                        <div class="w-8 h-8 flex items-center justify-center">
+                            {{ .Icon }}
+                        </div>
+                        <!-- Content -->
+                        <div>
+                            <div class="text-lg font-bold">{{ .Title }}</div>
+                            <div class="text-sm">{{ .Description }}</div>
+                        </div>
+                    </a>
+                {{ end }}
+            </div>
+        </div>
+        <!-- Notes -->
+        <div class="mt-12">
+            <div class="text-lg font-semibold">Notes:</div>
+            <ul class="mt-4 list-disc list-inside text-sm">
+                <li>Now you can remove Starter component from page initialization and file system</li>
+                <li>For building all statics, just execute <code class="px-1 bg-gray-200">npm run build</code> in static folder</li>
+                <li>For building CSS in watch mode, you can run <code class="px-1 bg-gray-200">npm run build:css:w</code> in static folder</li>
+                <li>After adding new images to static/img folder, you'll need to execute <code class="px-1 bg-gray-200">npm run build:img</code></li>
+            </ul>
+        </div>
+    </div>
+    <!-- Image -->
+    <div class="hidden md:flex w-1/2 pt-32 pl-16 pr-32 items-center justify-center">
+        <img src="/static/img/arts/dev.svg" alt="dev">
+    </div>
+</div>
+{{ end }}

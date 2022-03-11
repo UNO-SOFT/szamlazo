@@ -1,27 +1,25 @@
-# Blue Jay - Blueprint
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/blue-jay/blueprint)](https://goreportcard.com/report/github.com/blue-jay/blueprint)
-[![GoDoc](https://godoc.org/github.com/blue-jay/blueprint?status.svg)](https://godoc.org/github.com/blue-jay/blueprint)
+<h1 align="center">kyoto starter</h1>
+<p align="center">
+    Quick Start project setup
+</p>
 
-Blueprint for your next web application in Go.
+## What's included
 
-Documentation available here: http://blue-jay.github.io/
+- [kyoto](https://github.com/kyoto-framework/kyoto)
+- [kyoto uikit](https://github.com/kyoto-framework/uikit)
+- [tailwindcss](https://tailwindcss.com)
 
-Blue Jay is a web toolkit for [Go](https://golang.org/). It's a collection of
-command-line tools and a web blueprint that allows you to easily structure
-your web application. There is no rigid framework to which you have to
-conform.
+## How to use
 
-There are a few components:
+- Clone project with `git clone --recursive https://github.com/kyoto-framework/starter <app name>` (replace `<app name>` with desired app name)
+- Install dependencies for statics with executing `npm i` in static folder
+- Build statics with executing `npm run build` in static folder
+- And execute `go run .` in the root to start the server
 
-- [**Blueprint**](https://github.com/blue-jay/blueprint) is a
-model-view-controller (MVC) style web skeleton.
+## Support
 
-- [**Jay**](https://github.com/blue-jay/jay) is a command-line tool with
-modules for find/replace, database migrations, code generation, and env.json.
+<a target="_blank" href="https://www.buymeacoffee.com/yuriizinets"><img alt="Buy me a Coffee" src="https://github.com/egonelbre/gophers/blob/master/.thumb/animation/buy-morning-coffee-3x.gif?raw=true"></a>
 
-- [**Core**](https://github.com/blue-jay/core) is a collection of packages
-available to Blueprint and Jay as well as other applications.
 
-Check the [milestones](https://github.com/blue-jay/blueprint/milestones) for
-project status.
+Or directly with Bitcoin: `bc1qgxe4u799f8pdyzk65sqpq28xj0yc6g05ckhvkk`
