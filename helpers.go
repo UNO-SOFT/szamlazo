@@ -1,16 +1,15 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
-	"io"
 	"io/fs"
-	"path"
+	"os"
+	"path/filepath"
 
 	"github.com/kyoto-framework/kyoto"
+	"github.com/tgulacsi/go/zipfs"
 )
 
 var _ embed.FS
@@ -24,8 +23,8 @@ var htmlZIP []byte
 var uikitZIP []byte
 
 var (
-	htmlFS  = NewZipFS(htmlZIP)
-	uikitFS = NewZipFS(uikitZIP)
+	htmlFS  = newGlobOrZipFS("*.html", htmlZIP)
+	uikitFS = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
 )
 
 func newtemplate(page string) *template.Template {
@@ -42,53 +41,62 @@ func newtemplate(page string) *template.Template {
 	return t
 }
 
-type ZipFS struct {
-	z *zip.Reader
-	m map[string]int
+type mergeFS struct {
+	A, B fs.FS
 }
 
-type zipFile struct {
-	io.ReadCloser
-	fh fs.FileInfo
+var _ = fs.FS(mergeFS{})
+
+func (m mergeFS) Open(name string) (fs.File, error) {
+	if f, err := m.A.Open(name); err == nil {
+		return f, nil
+	}
+	return m.B.Open(name)
 }
-
-func (zf zipFile) Stat() (fs.FileInfo, error) { return zf.fh, nil }
-
-func (f ZipFS) Open(name string) (fs.File, error) {
-	if i, ok := f.m[name]; ok {
-		F := f.z.File[i]
-		rc, err := F.Open()
+func newGlobOrZipFS(pattern string, zipBytes []byte) fs.FS {
+	fsys, err := func() (fs.FS, error) {
+		names, err := filepath.Glob(pattern)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%q: %w", pattern, err)
 		}
-		return zipFile{ReadCloser: rc, fh: F.FileInfo()}, nil
-	}
-	return nil, fs.ErrNotExist
-}
-func (f ZipFS) Glob(pattern string) ([]string, error) {
-	des := make([]string, 0, len(f.z.File))
-	for _, F := range f.z.File {
-		if ok, err := path.Match(pattern, F.Name); ok {
-			des = append(des, F.Name)
-		} else if err != nil {
-			return des, err
+		if len(names) == 0 {
+			return zipfs.MustNewZipFS(zipfs.BytesSectionReader(zipBytes)), nil
 		}
-	}
-	return des, nil
-}
-
-var _ = fs.GlobFS(ZipFS{})
-
-func NewZipFS(zipData []byte) fs.FS {
-	z, err := zip.NewReader(
-		bytes.NewReader(zipData), int64(len(zipData)),
-	)
+		files := make(map[string]struct{}, len(names))
+		dirs := make(map[string]struct{})
+		for _, f := range names {
+			files[f] = struct{}{}
+			dirs[filepath.Dir(f)] = struct{}{}
+		}
+		return limitFS{files: files, dirs: dirs, fsys: os.DirFS(".")}, nil
+	}()
 	if err != nil {
 		panic(err)
 	}
-	m := make(map[string]int, len(z.File))
-	for i, F := range z.File {
-		m[F.Name] = i
+	if err := fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
+		return nil
+	}); err != nil {
+		panic(err)
 	}
-	return ZipFS{z: z, m: m}
+	if _, err = fs.Glob(fsys, "*.html"); err != nil {
+		panic(err)
+	}
+	return fsys
+}
+
+type limitFS struct {
+	files map[string]struct{}
+	dirs  map[string]struct{}
+	fsys  fs.FS
+}
+
+func (lf limitFS) Open(name string) (fs.File, error) {
+	_, ok := lf.files[name]
+	if !ok {
+		_, ok = lf.dirs[name]
+	}
+	if ok || name == "" || name == "." || name == "/" {
+		return lf.fsys.Open(name)
+	}
+	return nil, fmt.Errorf("%q: %w", name, fs.ErrNotExist)
 }
