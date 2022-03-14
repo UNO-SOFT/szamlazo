@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/kyoto-framework/kyoto"
 	"github.com/tgulacsi/go/zipfs"
@@ -14,17 +17,20 @@ import (
 
 var _ embed.FS
 
-//go:generate sh -c "zip -9 html.zip *.html"
+//go:generate sh -c "rm -f html.zip; zip -j9 html.zip *.html uikit/twui/*.html"
 //go:embed html.zip
 var htmlZIP []byte
 
-//go:generate sh -c "zip -9 twui.zip uikit/twui/*.html"
-//go:embed twui.zip
-var uikitZIP []byte
+//go:generate sh -c "rm -f static.zip; zip -r9 static.zip static/css static/img"
+//go:embed static.zip
+var staticZIP []byte
 
 var (
-	htmlFS  = newGlobOrZipFS("*.html", htmlZIP)
-	uikitFS = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
+	htmlFS   = newGlobOrZipFS("*.html", htmlZIP)
+	staticFS = newGlobOrZipFS("static/", staticZIP)
+
+	_ = newtemplate("page.index.html")
+	_ = newtemplate("SASS")
 )
 
 func newtemplate(page string) *template.Template {
@@ -35,9 +41,6 @@ func newtemplate(page string) *template.Template {
 		panic(fmt.Sprintf("htmlfs: %+v", err))
 	}
 
-	if t, err = t.ParseFS(uikitFS, "uikit/twui/*.html"); err != nil {
-		panic(fmt.Sprintf("uikitfs: %+v", err))
-	}
 	return t
 }
 
@@ -99,4 +102,44 @@ func (lf limitFS) Open(name string) (fs.File, error) {
 		return lf.fsys.Open(name)
 	}
 	return nil, fmt.Errorf("%q: %w", name, fs.ErrNotExist)
+}
+
+func RequestLoggerMiddleware(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		sw := NewStatusResponseWriter(w)
+
+		defer func() {
+			log.Printf(
+				"[%s] [%v] [%d] %s %s %s",
+				req.Method,
+				time.Since(start),
+				sw.statusCode,
+				req.Host,
+				req.URL.Path,
+				req.URL.RawQuery,
+			)
+		}()
+
+		next.ServeHTTP(sw, req)
+	})
+}
+
+// WriteHeader assigns status code and header to ResponseWriter of statusResponseWriter object
+func (sw *statusResponseWriter) WriteHeader(statusCode int) {
+	sw.statusCode = statusCode
+	sw.ResponseWriter.WriteHeader(statusCode)
+}
+
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+// NewStatusResponseWriter returns pointer to a new statusResponseWriter object
+func NewStatusResponseWriter(w http.ResponseWriter) *statusResponseWriter {
+	return &statusResponseWriter{
+		ResponseWriter: w,
+		statusCode:     http.StatusOK,
+	}
 }

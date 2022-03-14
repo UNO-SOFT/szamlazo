@@ -13,3 +13,5 @@ require (
 )
 
 replace github.com/kyoto-framework/uikit/twui => ./uikit/twui
+
+//replace github.com/tgulacsi/go => ../../tgulacsi/go

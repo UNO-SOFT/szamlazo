@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"html/template"
 	"log"
 	"net/http"
@@ -9,9 +8,6 @@ import (
 
 	"github.com/kyoto-framework/kyoto"
 )
-
-//go:embed static
-var staticFS embed.FS
 
 func ssatemplate(p kyoto.Page) *template.Template {
 	return newtemplate("SSA")
@@ -28,11 +24,7 @@ func Main() error {
 	http.HandleFunc("/", kyoto.PageHandler(&PageIndex{}))
 
 	// Statics
-	if _, err := os.Stat("static"); err == nil {
-		http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/dist"))))
-	} else {
-		http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
-	}
+	http.Handle("/static/", RequestLoggerMiddleware(http.FileServer(http.FS(staticFS))))
 	// SSA
 	http.HandleFunc("/SSA/", kyoto.SSAHandler(ssatemplate))
 
