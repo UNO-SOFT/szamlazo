@@ -7,8 +7,8 @@ import (
 )
 
 type PageIndex struct {
-	Navbar  kyoto.Component
-	Starter kyoto.Component
+	Navbar kyoto.Component
+	Menu   kyoto.Component
 }
 
 func (p *PageIndex) Template() *template.Template {
@@ -22,9 +22,15 @@ func (p *PageIndex) Meta() kyoto.Meta {
 }
 
 func (p *PageIndex) Init() {
-	p.Navbar = kyoto.RegC(p, UINavbar())
-	p.Starter = kyoto.RegC(p, &Starter{
-		Installed: []StarterLink{
+	p.Navbar = kyoto.RegC(p, &UINavbar)
+	p.Menu = kyoto.RegC(p, &Menu{
+		Links: []Link{
+			{
+				//Icon:        `<img src="/static/img/icons/kyoto.svg" class="h-8 w-8" />`,
+				Title:       "Dashboard",
+				Description: "Havi munkamennység",
+				Href:        "./dashboard",
+			},
 			{
 				Icon:        `<img src="/static/img/icons/kyoto.svg" class="h-8 w-8" />`,
 				Title:       "Kyoto",

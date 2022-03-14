@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kyoto-framework/kyoto"
@@ -17,20 +18,27 @@ import (
 
 var _ embed.FS
 
-//go:generate sh -c "rm -f html.zip; zip -j9 html.zip *.html uikit/twui/*.html"
+//go:generate go generate ./static/
+
+//go:generate sh -c "rm -f html.zip; zip -j2 html.zip *.html"
 //go:embed html.zip
 var htmlZIP []byte
 
-//go:generate sh -c "rm -f static.zip; zip -r9 static.zip static/css static/img"
+//go:generate sh -c "rm -f uikit.zip; zip -2 uikit.zip uikit/twui/*.html"
+//go:embed uikit.zip
+var uikitZIP []byte
+
+//go:generate sh -c "rm -f static.zip; (cd static && zip -r2 ../../static.zip dist)"
 //go:embed static.zip
 var staticZIP []byte
 
+//go:embed testdata/nyilvtart-jan.csv
+var nyilvtartCSV []byte
+
 var (
 	htmlFS   = newGlobOrZipFS("*.html", htmlZIP)
-	staticFS = newGlobOrZipFS("static/", staticZIP)
-
-	_ = newtemplate("page.index.html")
-	_ = newtemplate("SASS")
+	uikitFS  = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
+	staticFS = newGlobOrZipFS("static/dist", staticZIP)
 )
 
 func newtemplate(page string) *template.Template {
@@ -39,6 +47,12 @@ func newtemplate(page string) *template.Template {
 	var err error
 	if t, err = t.ParseFS(htmlFS, "*.html"); err != nil {
 		panic(fmt.Sprintf("htmlfs: %+v", err))
+	}
+	if t, err = t.ParseFS(uikitFS, "uikit/twui/*.html"); err != nil {
+		panic(fmt.Sprintf("uikitfs: %+v", err))
+	}
+	if t.Lookup(page) == nil {
+		panic(fmt.Sprintf("newtemplate %q: no such template", page))
 	}
 
 	return t
@@ -58,20 +72,27 @@ func (m mergeFS) Open(name string) (fs.File, error) {
 }
 func newGlobOrZipFS(pattern string, zipBytes []byte) fs.FS {
 	fsys, err := func() (fs.FS, error) {
-		names, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("%q: %w", pattern, err)
+		if strings.Contains(pattern, "*") {
+			names, err := filepath.Glob(pattern)
+			if err != nil {
+				return nil, fmt.Errorf("%q: %w", pattern, err)
+			}
+			if len(names) == 0 {
+				return zipfs.MustNewZipFS(zipfs.BytesSectionReader(zipBytes)), nil
+			}
+			files := make(map[string]struct{}, len(names))
+			dirs := make(map[string]struct{})
+			for _, f := range names {
+				files[f] = struct{}{}
+				dirs[filepath.Dir(f)] = struct{}{}
+			}
+			return limitFS{files: files, dirs: dirs, fsys: os.DirFS(".")}, nil
 		}
-		if len(names) == 0 {
+
+		if _, err := os.Stat(filepath.Clean(pattern)); err != nil {
 			return zipfs.MustNewZipFS(zipfs.BytesSectionReader(zipBytes)), nil
 		}
-		files := make(map[string]struct{}, len(names))
-		dirs := make(map[string]struct{})
-		for _, f := range names {
-			files[f] = struct{}{}
-			dirs[filepath.Dir(f)] = struct{}{}
-		}
-		return limitFS{files: files, dirs: dirs, fsys: os.DirFS(".")}, nil
+		return os.DirFS(pattern), nil
 	}()
 	if err != nil {
 		panic(err)

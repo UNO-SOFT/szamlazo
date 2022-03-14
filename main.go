@@ -22,9 +22,10 @@ func main() {
 func Main() error {
 	// Routes
 	http.HandleFunc("/", kyoto.PageHandler(&PageIndex{}))
+	http.HandleFunc("/dashboard", kyoto.PageHandler(&Dashboard{}))
 
 	// Statics
-	http.Handle("/static/", RequestLoggerMiddleware(http.FileServer(http.FS(staticFS))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	// SSA
 	http.HandleFunc("/SSA/", kyoto.SSAHandler(ssatemplate))
 
@@ -34,5 +35,5 @@ func Main() error {
 		port = "25025"
 	}
 	log.Println("Listening on http://localhost:" + port)
-	return http.ListenAndServe("localhost:"+port, nil)
+	return http.ListenAndServe("localhost:"+port, RequestLoggerMiddleware(http.DefaultServeMux))
 }

@@ -2,11 +2,11 @@ package main
 
 import "html/template"
 
-type Starter struct {
-	Installed []StarterLink
+type Menu struct {
+	Links []Link
 }
 
-type StarterLink struct {
+type Link struct {
 	Icon        template.HTML
 	Title       string
 	Description string
