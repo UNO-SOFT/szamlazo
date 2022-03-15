@@ -16,6 +16,7 @@ import (
 
 	"github.com/kyoto-framework/kyoto"
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"golang.org/x/text/encoding/charmap"
 )
 
 func ssatemplate(p kyoto.Page) *template.Template {
@@ -28,7 +29,7 @@ func main() {
 	}
 }
 
-var dashboardTableRows [][]string
+var dashboardTableRows []DashboardTableRow
 
 func Main() error {
 	fs := flag.NewFlagSet("szamlazo", flag.ContinueOnError)
@@ -49,11 +50,31 @@ func Main() error {
 				}
 				inName = args[0]
 			}
+			defer r.Close()
 			log.Printf("Reading csv from %q", inName)
-			cr := csv.NewReader(r)
+
+			cr := csv.NewReader(charmap.ISO8859_2.NewDecoder().Reader(r))
 			cr.Comma = ';'
+			cr.ReuseRecord = true
 			var err error
-			dashboardTableRows, err = cr.ReadAll()
+			for {
+				row, err := cr.Read()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					return err
+				}
+				if row[1] == "F_CEG" {
+					log.Println(row)
+					continue
+				}
+				var dr DashboardTableRow
+				if err = dr.ParseFields(row); err != nil {
+					return fmt.Errorf("%v: %w", row, err)
+				}
+				dashboardTableRows = append(dashboardTableRows, dr)
+			}
 			r.Close()
 			if err != nil {
 				return err

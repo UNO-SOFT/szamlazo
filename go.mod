@@ -12,6 +12,7 @@ require (
 	github.com/kyoto-framework/scheduler v0.0.0-20220208110634-a2f0babca15f // indirect
 	github.com/peterbourgon/ff/v3 v3.1.2 // indirect
 	github.com/tgulacsi/go v0.19.6 // indirect
+	golang.org/x/text v0.3.7 // indirect
 )
 
 replace github.com/kyoto-framework/uikit/twui => ./uikit/twui

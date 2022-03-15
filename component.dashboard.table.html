@@ -1,22 +1,51 @@
 {{ define "DashboardTable" }}
 <div class="w-full h-screen flex items-start">
     <!-- Navigation -->
-    <div class="w-full md:w-1/2 p-4 md:p-32">
+    <div class="w-full">
         <!-- Title -->
         <div class="text-center text-4xl font-black">Táblázat</div>
         <div class="mt-12">
             <div class="mt-4 flex flex-col gap-4">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cég</th>
+                            <th>Felhasználó</th>
+                            <th>Típus</th>
+                            <th>Vállalás</th>
+                            <th>Ráfordítás</th>
+                            <th>Beérkezés</th>
+                            <th>Elfogadva</th>
+                            <th>Határidő</th>
+                            <th>Élesen<th>
+                            <th>ID</th>
+                            <th>Cím</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                 {{ range .Rows }}
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        {{ . }}
-                    </div>
+                        <tr>
+                            <td>{{ .Ceg }}</td>
+                            <td>{{ .User }}</td>
+                            <td>{{ .Tipus }}</td>
+                            <td>{{ .VallalasEnapCent }}</td>
+                            <td>{{ .IdoEnapCent }}</td>
+                            <td>{{ .Beerkezes.Format "2006-01-02" }}</td>
+                            <td>{{ .Elfogadva.Format "2006-01-02" }}</td>
+                            <td>{{ .Hatarido.Format "2006-01-02" }}</td>
+                            <td>{{ .Elesen.Format "2006-01-02" }}</td>
+                            <td>
+                                <a href="https://www.unosoft.hu/mantis/{{ .Ceg }}/view.php?id={{ .ID }}">
+                                    {{ .ID }}
+                                </a>
+                            </td>
+                            <td>{{ .Summary }}</td>
+                        </tr>
                 {{ end }}
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
-    <!-- Image -->
-    <div class="hidden md:flex w-1/2 pt-32 pl-16 pr-32 items-center justify-center">
-        <img src="/static/img/arts/dev.svg" alt="dev">
     </div>
 </div>
 {{ end }}
