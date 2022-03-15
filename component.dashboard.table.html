@@ -1,12 +1,11 @@
 {{ define "DashboardTable" }}
-<div class="w-full h-screen flex items-start">
+<div {{ componentattrs . }} class="w-full h-screen flex items-start">
     <!-- Navigation -->
     <div class="w-full">
         <!-- Title -->
         <div class="text-center text-4xl font-black">Táblázat</div>
-        <div class="mt-12">
-            <div class="mt-4 flex flex-col gap-4">
-                <table>
+        <div class="mt-4 flex flex-col gap-4">
+                <table class="table-auto">
                     <thead>
                         <tr>
                             <th>Cég</th>
@@ -17,34 +16,143 @@
                             <th>Beérkezés</th>
                             <th>Elfogadva</th>
                             <th>Határidő</th>
-                            <th>Élesen<th>
+                            <th>Élesen</th>
                             <th>ID</th>
                             <th>Cím</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                {{ range .Rows }}
-                        <tr>
-                            <td>{{ .Ceg }}</td>
-                            <td>{{ .User }}</td>
-                            <td>{{ .Tipus }}</td>
-                            <td>{{ .VallalasEnapCent }}</td>
-                            <td>{{ .IdoEnapCent }}</td>
-                            <td>{{ .Beerkezes.Format "2006-01-02" }}</td>
-                            <td>{{ .Elfogadva.Format "2006-01-02" }}</td>
-                            <td>{{ .Hatarido.Format "2006-01-02" }}</td>
-                            <td>{{ .Elesen.Format "2006-01-02" }}</td>
-                            <td>
-                                <a href="https://www.unosoft.hu/mantis/{{ .Ceg }}/view.php?id={{ .ID }}">
-                                    {{ .ID }}
-                                </a>
-                            </td>
-                            <td>{{ .Summary }}</td>
-                        </tr>
-                {{ end }}
+                        <td>
+                            <select id="ceg" onchange="{{ bind `Ceg` }};{{ action `Reload` }}">
+                                <option value="" />
+                                {{ with $x := . }}
+                                {{ range (structFieldSlice "Ceg" $x.Rows | uniq) }}
+                                <option value="{{ . }}" {{ if eq $x.Ceg . }}selected{{ end }}>{{ . }}</option>
+                                {{ end }} 
+                                {{ end }}
+                            </select>
+                        </td>
+                        <td>
+                            <select id="user" onchange="{{ bind `User` }};{{ action `Reload` }}">
+                                <option value="" />
+                                {{ with $x := . }}
+                                {{ range (structFieldSlice "User" $x.Rows | uniq) }}
+                                <option value="{{ . }}" {{ if eq $x.User . }}selected{{ end }}>{{ . }}</option>
+                                {{ end }} 
+                                {{ end }}
+                            </select>
+                        </td>
+                        <td>
+                            <select id="tipus" onchange="{{ bind `Tipus` }};{{ action `Reload` }}">
+                                <option value="" />
+                                {{ with $x := . }}
+                                {{ range (structFieldSlice "Tipus" $x.Rows | uniq) }}
+                                <option value="{{ . }}" {{ if eq $x.Tipus . }}selected{{ end }}>{{ . }}</option>
+                                {{ end }} 
+                                {{ end }}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" min="0" max="100" 
+                                value="{{ .VallalasMin }}"
+                                onchange="{{ bind `VallalasMin` }};{{ action `Reload ` }}" />
+                            <input type="number" min="0" max="100" 
+                                value="{{ .VallalasMax }}"
+                                onchange="{{ bind `VallalasMax` }};{{ action `Reload ` }}" />
+                        </td>
+                        <td>
+                            <input type="number" min="0" max="100" 
+                                value="{{ .IdoMin }}"
+                                onchange="{{ bind `IdoMin` }};{{ action `Reload ` }}" />
+                            <input type="number" min="0" max="100" 
+                                value="{{ .IdoMax }}"
+                                onchange="{{ bind `IdoMax` }};{{ action `Reload ` }}" />
+                        </td>
+                        <td>
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .BeerkezesMin }}" 
+                                   onchange="{{ bind `BeerkezesMin` }}" />
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .BeerkezesMax }}"
+                                   onchange="{{ bind `BeerkezesMax` }};{{ action `Reload` }}" />
+                        </td>
+                        <td>
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .ElfogadvaMin }}" 
+                                   onchange="{{ bind `ElfogadvaMin` }}" />
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .ElfogadvaMax }}"
+                                   onchange="{{ bind `ElfogadvaMax` }};{{ action `Reload` }}" />
+                        </td>
+                        <td>
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .HataridoMin }}" 
+                                   onchange="{{ bind `HataridoMin` }}" />
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .HataridoMax }}"
+                                   onchange="{{ bind `HataridoMax` }};{{ action `Reload` }}" />
+                        </td>
+                        <td>
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .ElesenMin }}" 
+                                   onchange="{{ bind `ElesenMin` }}" />
+                            <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
+                                   value="{{ .ElesenMax }}"
+                                   onchange="{{ bind `ElesenMax` }};{{ action `Reload` }}" />
+                        </td>
+                        <td>
+                            <input type="number" min="0" max="999999"
+                                   value="{{ .ID }}"
+                                   onchange="{{ bind `ID` }};{{ action `Reload` }}" />
+                        </td>
                     </tbody>
-                </table>
-            </div>
+                    <div>
+                        <button onclick="{{ action `Reset` }}">Reset</button>
+                    </div>
+                    <div>
+                        <button onclick="{{ action `Reload` }}">Szűkítés</button>
+                    </div>
+        </div>
+        <div class="mt-4 flex flex-col gap-4">
+            <table class="table-auto">
+                <thead>
+                    <tr>
+                        <th>Cég</th>
+                        <th>Felhasználó</th>
+                        <th>Típus</th>
+                        <th>Vállalás</th>
+                        <th>Ráfordítás</th>
+                        <th>Beérkezés</th>
+                        <th>Elfogadva</th>
+                        <th>Határidő</th>
+                        <th>Élesen</th>
+                        <th>ID</th>
+                        <th>Cím</th>
+                    </tr>
+                </thead>
+                <tbody>
+            {{ range .Filtered }}
+                    <tr>
+                        <td>{{ .Ceg }}</td>
+                        <td>{{ .User }}</td>
+                        <td>{{ .Tipus }}</td>
+                        <td>{{ .Vallalas }}</td>
+                        <td>{{ .Ido }}</td>
+                        <td>{{ .Beerkezes.Format "2006-01-02" }}</td>
+                        <td>{{ .Elfogadva.Format "2006-01-02" }}</td>
+                        <td>{{ .Hatarido.Format "2006-01-02" }}</td>
+                        <td>{{ .Elesen.Format "2006-01-02" }}</td>
+                        <td>
+                            <a href="https://www.unosoft.hu/mantis/{{ .Ceg }}/view.php?id={{ .ID }}">
+                                {{ .ID }}
+                            </a>
+                        </td>
+                        <td>{{ .Summary }}</td>
+                    </tr>
+            {{ end }}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

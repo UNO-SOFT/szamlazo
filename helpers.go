@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -41,6 +42,39 @@ var (
 func newtemplate(page string) *template.Template {
 	t := template.New(page)
 	t = t.Funcs(kyoto.TFuncMap())
+	t = t.Funcs(template.FuncMap{
+		"structFieldSlice": func(field string, arr interface{}) interface{} {
+			arrV := reflect.ValueOf(arr)
+			tf, _ := arrV.Type().Elem().FieldByName(field)
+			fieldsV := reflect.MakeSlice(reflect.SliceOf(tf.Type), 0, arrV.Len())
+			for i := 0; i < arrV.Len(); i++ {
+				fieldsV = reflect.Append(fieldsV, arrV.Index(i).FieldByName(field))
+			}
+			return fieldsV.Interface()
+		},
+		"uniq": func(slice interface{}) interface{} {
+			switch x := slice.(type) {
+			case []string:
+				return uniq[string](x)
+			}
+			arrV := reflect.ValueOf(slice)
+			uniqV := reflect.MakeSlice(arrV.Type(), 0, arrV.Len())
+			token := reflect.ValueOf(true)
+			seenV := reflect.MakeMapWithSize(reflect.MapOf(arrV.Type().Elem(), token.Type()), arrV.Len())
+			for i := 0; i < arrV.Len(); i++ {
+				kV := arrV.Index(i)
+				if !seenV.MapIndex(kV).IsZero() {
+					continue
+				}
+				seenV.SetMapIndex(kV, token)
+				reflect.Append(uniqV, kV)
+			}
+			return uniqV.Interface()
+		},
+		"now": func() time.Time {
+			return time.Now()
+		},
+	})
 	var err error
 	if t, err = t.ParseFS(htmlFS, "*.html"); err != nil {
 		panic(fmt.Sprintf("htmlfs: %+v", err))
@@ -53,6 +87,30 @@ func newtemplate(page string) *template.Template {
 	}
 
 	return t
+}
+
+/*
+func structFieldSlice[Struct, Field any](fieldName string, slice []Struct) []Field {
+	arrV := reflect.ValueOf(arr)
+	fieldsV := reflect.MakeSlice(arrV.Type().Elem(), 0, arrV.Len())
+	for i := 0; i < arrV.Len(); i++ {
+		reflect.Append(fieldsV, arrV.Index(i).FieldByName(field))
+	}
+	return fieldsV.Interface()
+}
+*/
+func uniq[Elem comparable](slice []Elem) []Elem {
+	result := make([]Elem, 0, len(slice))
+	seen := make(map[Elem]struct{}, len(slice))
+	var token struct{}
+	for _, e := range slice {
+		if _, ok := seen[e]; ok {
+			continue
+		}
+		seen[e] = token
+		result = append(result, e)
+	}
+	return result
 }
 
 type mergeFS struct {
@@ -149,6 +207,8 @@ func (sw *statusResponseWriter) WriteHeader(statusCode int) {
 	sw.ResponseWriter.WriteHeader(statusCode)
 }
 
+var _ = http.Flusher((*statusResponseWriter)(nil))
+
 type statusResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -160,4 +220,7 @@ func NewStatusResponseWriter(w http.ResponseWriter) *statusResponseWriter {
 		ResponseWriter: w,
 		statusCode:     http.StatusOK,
 	}
+}
+func (sw *statusResponseWriter) Flush() {
+	sw.ResponseWriter.(http.Flusher).Flush()
 }

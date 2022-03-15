@@ -23,6 +23,8 @@ func (p *Dashboard) Meta() kyoto.Meta {
 
 func (p *Dashboard) Init() {
 	p.Navbar = kyoto.RegC(p, &UINavbar)
-	p.Table = kyoto.RegC(p, &DashboardTable{Rows: dashboardTableRows})
+	p.Table = kyoto.RegC(p, &DashboardTable{
+		Filtered: append(make([]DashboardTableRow, 0, len(dashboardTableRows)), dashboardTableRows...),
+	})
 	//p.Menu = kyoto.RegC(p, &Menu{})
 }
