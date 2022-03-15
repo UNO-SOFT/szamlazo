@@ -8,6 +8,7 @@ import (
 
 type Dashboard struct {
 	Navbar kyoto.Component
+	rows   [][]string
 }
 
 func (p *Dashboard) Template() *template.Template {

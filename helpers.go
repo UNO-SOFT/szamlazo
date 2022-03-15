@@ -32,9 +32,6 @@ var uikitZIP []byte
 //go:embed static.zip
 var staticZIP []byte
 
-//go:embed testdata/nyilvtart-jan.csv
-var nyilvtartCSV []byte
-
 var (
 	htmlFS   = newGlobOrZipFS("*.html", htmlZIP)
 	uikitFS  = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
