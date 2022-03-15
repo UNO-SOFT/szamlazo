@@ -8,7 +8,7 @@ import (
 
 type Dashboard struct {
 	Navbar kyoto.Component
-	rows   [][]string
+	Table  kyoto.Component
 }
 
 func (p *Dashboard) Template() *template.Template {
@@ -23,5 +23,6 @@ func (p *Dashboard) Meta() kyoto.Meta {
 
 func (p *Dashboard) Init() {
 	p.Navbar = kyoto.RegC(p, &UINavbar)
+	p.Table = kyoto.RegC(p, &DashboardTable{Rows: dashboardTableRows})
 	//p.Menu = kyoto.RegC(p, &Menu{})
 }

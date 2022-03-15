@@ -1,0 +1,22 @@
+{{ define "DashboardTable" }}
+<div class="w-full h-screen flex items-start">
+    <!-- Navigation -->
+    <div class="w-full md:w-1/2 p-4 md:p-32">
+        <!-- Title -->
+        <div class="text-center text-4xl font-black">Táblázat</div>
+        <div class="mt-12">
+            <div class="mt-4 flex flex-col gap-4">
+                {{ range .Rows }}
+                    <div class="w-8 h-8 flex items-center justify-center">
+                        {{ . }}
+                    </div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+    <!-- Image -->
+    <div class="hidden md:flex w-1/2 pt-32 pl-16 pr-32 items-center justify-center">
+        <img src="/static/img/arts/dev.svg" alt="dev">
+    </div>
+</div>
+{{ end }}

@@ -9,7 +9,8 @@
 </head>
 <body>
     {{ template "AppUINavNavbar" .Navbar }}
-    { { template "page.dashboard.html" .Menu } }
+    {{ .Table.Len }}
+    {{ template "DashboardTable" .Table }}
     {{ dynamics }}
 </body>
 </html>

@@ -28,6 +28,8 @@ func main() {
 	}
 }
 
+var dashboardTableRows [][]string
+
 func Main() error {
 	fs := flag.NewFlagSet("szamlazo", flag.ContinueOnError)
 	port := os.Getenv("PORT")
@@ -50,7 +52,8 @@ func Main() error {
 			log.Printf("Reading csv from %q", inName)
 			cr := csv.NewReader(r)
 			cr.Comma = ';'
-			rows, err := cr.ReadAll()
+			var err error
+			dashboardTableRows, err = cr.ReadAll()
 			r.Close()
 			if err != nil {
 				return err
@@ -58,7 +61,7 @@ func Main() error {
 
 			// Routes
 			http.HandleFunc("/", kyoto.PageHandler(&PageIndex{}))
-			http.HandleFunc("/dashboard", kyoto.PageHandler(&Dashboard{rows: rows}))
+			http.HandleFunc("/dashboard", kyoto.PageHandler(&Dashboard{}))
 
 			// Statics
 			http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
