@@ -19,17 +19,17 @@ import (
 
 var _ embed.FS
 
-//go:generate go generate ./static/
+// go:generate go generate ./static/
 
-//go:generate sh -c "rm -f html.zip; zip -j2 html.zip *.html"
+//go:generate sh -c "zip -FS -j2 html.zip *.html"
 //go:embed html.zip
 var htmlZIP []byte
 
-//go:generate sh -c "rm -f uikit.zip; zip -2 uikit.zip uikit/twui/*.html"
+//go:generate sh -c "zip -FS -2 uikit.zip uikit/twui/*.html"
 //go:embed uikit.zip
 var uikitZIP []byte
 
-//go:generate sh -c "rm -f static.zip; (cd static && zip -r2 ../../static.zip dist)"
+//go:generate sh -c "(cd static/dist && zip -FS -r2 ../../static.zip .)"
 //go:embed static.zip
 var staticZIP []byte
 
@@ -89,16 +89,6 @@ func newtemplate(page string) *template.Template {
 	return t
 }
 
-/*
-func structFieldSlice[Struct, Field any](fieldName string, slice []Struct) []Field {
-	arrV := reflect.ValueOf(arr)
-	fieldsV := reflect.MakeSlice(arrV.Type().Elem(), 0, arrV.Len())
-	for i := 0; i < arrV.Len(); i++ {
-		reflect.Append(fieldsV, arrV.Index(i).FieldByName(field))
-	}
-	return fieldsV.Interface()
-}
-*/
 func uniq[Elem comparable](slice []Elem) []Elem {
 	result := make([]Elem, 0, len(slice))
 	seen := make(map[Elem]struct{}, len(slice))
