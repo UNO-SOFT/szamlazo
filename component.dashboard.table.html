@@ -56,18 +56,18 @@
                         <td>
                             <input type="number" min="0" max="100" 
                                 value="{{ .VallalasMin }}"
-                                onchange="{{ bind `VallalasMin` }};{{ action `Reload ` }}" />
+                                onchange="{{ bind `VallalasMin` }};{{ action `Reload` }}" />
                             <input type="number" min="0" max="100" 
                                 value="{{ .VallalasMax }}"
-                                onchange="{{ bind `VallalasMax` }};{{ action `Reload ` }}" />
+                                onchange="{{ bind `VallalasMax` }};{{ action `Reload` }}" />
                         </td>
                         <td>
                             <input type="number" min="0" max="100" 
                                 value="{{ .IdoMin }}"
-                                onchange="{{ bind `IdoMin` }};{{ action `Reload ` }}" />
+                                onchange="{{ bind `IdoMin` }};{{ action `Reload` }}" />
                             <input type="number" min="0" max="100" 
                                 value="{{ .IdoMax }}"
-                                onchange="{{ bind `IdoMax` }};{{ action `Reload ` }}" />
+                                onchange="{{ bind `IdoMax` }};{{ action `Reload` }}" />
                         </td>
                         <td>
                             <input type="date" min="2020-01-01" max="{{ now.Format `2006-01-02` }}"
