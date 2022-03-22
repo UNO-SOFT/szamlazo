@@ -167,12 +167,15 @@ func (lf limitFS) Open(name string) (fs.File, error) {
 	if !ok {
 		_, ok = lf.dirs[name]
 	}
+	var f fs.File
+	var err error
 	if ok || name == "" || name == "." || name == "/" {
-		log.Printf("%q: OK", name)
-		return lf.fsys.Open(name)
+		f, err = lf.fsys.Open(name)
+	} else {
+		err = fmt.Errorf("%q: %w", name, fs.ErrNotExist)
 	}
-	log.Printf("%q: %+v", name, fs.ErrNotExist)
-	return nil, fmt.Errorf("%q: %w", name, fs.ErrNotExist)
+	//log.Printf("%q: (%v) %+v", name, f, err)
+	return f, err
 }
 
 func RequestLoggerMiddleware(next http.Handler) http.HandlerFunc {
