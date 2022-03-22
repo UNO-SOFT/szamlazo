@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -31,6 +33,9 @@ func main() {
 
 var dashboardTableRows []DashboardTableRow
 
+//go:embed testdata/nyilvtart-jan.csv
+var nyilvtartCSV []byte
+
 func Main() error {
 	fs := flag.NewFlagSet("szamlazo", flag.ContinueOnError)
 	port := os.Getenv("PORT")
@@ -43,7 +48,12 @@ func Main() error {
 		Exec: func(ctx context.Context, args []string) error {
 			r := io.ReadCloser(os.Stdin)
 			inName := "stdin"
-			if len(args) != 0 && args[0] != "" && args[0] != "-" {
+			if len(args) == 0 || args[0] == "" {
+				r = struct {
+					io.Reader
+					io.Closer
+				}{bytes.NewReader(nyilvtartCSV), io.NopCloser(nil)}
+			} else if len(args) != 0 && args[0] != "-" {
 				var err error
 				if r, err = os.Open(args[0]); err != nil {
 					return fmt.Errorf("%q: %w", args[0], err)
