@@ -119,6 +119,7 @@ func newGlobOrZipFS(pattern string, zipBytes []byte) fs.FS {
 	fsys, err := func() (fs.FS, error) {
 		if strings.Contains(pattern, "*") {
 			names, err := filepath.Glob(pattern)
+			log.Printf("pattern=%q names=%v error=%+v", pattern, names, err)
 			if err != nil {
 				return nil, fmt.Errorf("%q: %w", pattern, err)
 			}
@@ -165,8 +166,10 @@ func (lf limitFS) Open(name string) (fs.File, error) {
 		_, ok = lf.dirs[name]
 	}
 	if ok || name == "" || name == "." || name == "/" {
+		log.Printf("%q: OK", name)
 		return lf.fsys.Open(name)
 	}
+	log.Printf("%q: %+v", name, fs.ErrNotExist)
 	return nil, fmt.Errorf("%q: %w", name, fs.ErrNotExist)
 }
 
