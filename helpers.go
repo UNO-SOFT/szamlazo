@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -35,8 +36,8 @@ var staticZIP []byte
 
 var (
 	htmlFS   = newGlobOrZipFS("*.html", htmlZIP)
-	uikitFS  = newGlobOrZipFS(filepath.Join("uikit", "twui", "*.html"), uikitZIP)
-	staticFS = newGlobOrZipFS(filepath.Join("static", "dist"), staticZIP)
+	uikitFS  = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
+	staticFS = newGlobOrZipFS("static/dist", staticZIP)
 )
 
 func newtemplate(page string) *template.Template {
@@ -79,7 +80,7 @@ func newtemplate(page string) *template.Template {
 	if t, err = t.ParseFS(htmlFS, "*.html"); err != nil {
 		panic(fmt.Sprintf("htmlfs: %+v", err))
 	}
-	if t, err = t.ParseFS(uikitFS, filepath.Join("uikit", "twui", "*.html")); err != nil {
+	if t, err = t.ParseFS(uikitFS, "uikit/twui/*.html"); err != nil {
 		panic(fmt.Sprintf("uikitfs: %+v", err))
 	}
 	if t.Lookup(page) == nil {
@@ -118,7 +119,7 @@ func (m mergeFS) Open(name string) (fs.File, error) {
 func newGlobOrZipFS(pattern string, zipBytes []byte) fs.FS {
 	fsys, err := func() (fs.FS, error) {
 		if strings.Contains(pattern, "*") {
-			names, err := filepath.Glob(pattern)
+			names, err := filepath.Glob(filepath.FromSlash(pattern))
 			log.Printf("pattern=%q names=%v error=%+v", pattern, names, err)
 			if err != nil {
 				return nil, fmt.Errorf("%q: %w", pattern, err)
@@ -129,8 +130,9 @@ func newGlobOrZipFS(pattern string, zipBytes []byte) fs.FS {
 			files := make(map[string]struct{}, len(names))
 			dirs := make(map[string]struct{})
 			for _, f := range names {
+				f = filepath.ToSlash(f)
 				files[f] = struct{}{}
-				dirs[filepath.Dir(f)] = struct{}{}
+				dirs[path.Dir(f)] = struct{}{}
 			}
 			return limitFS{files: files, dirs: dirs, fsys: os.DirFS(".")}, nil
 		}
