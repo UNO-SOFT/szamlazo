@@ -35,8 +35,8 @@ var staticZIP []byte
 
 var (
 	htmlFS   = newGlobOrZipFS("*.html", htmlZIP)
-	uikitFS  = newGlobOrZipFS("uikit/twui/*.html", uikitZIP)
-	staticFS = newGlobOrZipFS("static/dist", staticZIP)
+	uikitFS  = newGlobOrZipFS(filepath.Join("uikit", "twui", "*.html"), uikitZIP)
+	staticFS = newGlobOrZipFS(filepath.Join("static", "dist"), staticZIP)
 )
 
 func newtemplate(page string) *template.Template {
@@ -79,7 +79,7 @@ func newtemplate(page string) *template.Template {
 	if t, err = t.ParseFS(htmlFS, "*.html"); err != nil {
 		panic(fmt.Sprintf("htmlfs: %+v", err))
 	}
-	if t, err = t.ParseFS(uikitFS, "uikit/twui/*.html"); err != nil {
+	if t, err = t.ParseFS(uikitFS, filepath.Join("uikit", "twui", "*.html")); err != nil {
 		panic(fmt.Sprintf("uikitfs: %+v", err))
 	}
 	if t.Lookup(page) == nil {
